@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#21808D">
+    <meta name="description" content="Professional film photography light meter with exposure calculator">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Film Light Meter</title>
+    <style>
+        :root {
+            --color-cream-50: rgba(252, 252, 249, 1);
+            --color-cream-100: rgba(255, 255, 253, 1);
+            --color-slate-900: rgba(19, 52, 59, 1);
+            --color-slate-500: rgba(98, 108, 113, 1);
+            --color-teal-300: rgba(50, 184, 198, 1);
+            --color-teal-500: rgba(33, 128, 141, 1);
+            --color-teal-600: rgba(29, 116, 128, 1);
+            --color-brown-600-rgb: 94, 82, 64;
+            --color-teal-500-rgb: 33, 128, 141;
+            --color-gray-200: rgba(245, 245, 245, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-background: rgba(31, 33, 33, 1);
+                --color-surface: rgba(38, 40, 40, 1);
+                --color-text: rgba(245, 245, 245, 1);
+                --color-text-secondary: rgba(167, 169, 169, 0.7);
+                --color-primary: var(--color-teal-300);
+                --color-border: rgba(119, 124, 124, 0.3);
+                --color-card-border: rgba(119, 124, 124, 0.2);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--color-background, var(--color-slate-900));
+            color: var(--color-text, var(--color-gray-200));
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--color-surface, rgba(0, 0, 0, 0.4));
+            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .ev-display {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-primary, var(--color-teal-300));
+        }
+
+        /* Camera View */
+        .camera-view {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .camera-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: var(--color-text-secondary, rgba(255, 255, 255, 0.5));
+            font-size: 14px;
+        }
+
+        .spot-meter-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            border: 2px solid var(--color-primary, var(--color-teal-300));
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3);
+        }
+
+        .spot-meter-overlay::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--color-primary, var(--color-teal-300));
+        }
+
+        .spot-meter-overlay::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--color-primary, var(--color-teal-300));
+        }
+
+        /* Measure Button */
+        .measure-btn {
+            position: absolute;
+            bottom: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--color-primary, var(--color-teal-300));
+            border: 4px solid var(--color-surface, rgba(255, 255, 255, 0.2));
+            color: var(--color-slate-900);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .measure-btn:active {
+            transform: translateX(-50%) scale(0.95);
+            box-shadow: 0 0 20px rgba(50, 184, 198, 0.6);
+        }
+
+        .measure-btn.measuring {
+            background: var(--color-teal-600);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            background: var(--color-surface, rgba(38, 40, 40, 1));
+            border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+        }
+
+        .iso-control {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+        }
+
+        .iso-label {
+            font-size: 12px;
+            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .iso-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--color-text, var(--color-gray-200));
+        }
+
+        .iso-slider {
+            width: 100%;
+            margin-top: 12px;
+            height: 44px;
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+
+        .iso-slider::-webkit-slider-thumb {
+            width: 24px;
+            height: 24px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--color-primary, var(--color-teal-300));
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .iso-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: var(--color-primary, var(--color-teal-300));
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Exposure Wheels */
+        .exposure-wheels {
+            display: flex;
+            padding: 20px 0;
+        }
+
+        .wheel-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .wheel-container:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10%;
+            bottom: 10%;
+            width: 1px;
+            background: var(--color-border, rgba(255, 255, 255, 0.1));
+        }
+
+        .wheel-label {
+            font-size: 11px;
+            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .wheel {
+            height: 160px;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            padding: 60px 0;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
+        }
+
+        .wheel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .wheel * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .wheel-item {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 500;
+            scroll-snap-align: center;
+            transition: all 0.2s;
+            opacity: 0.3;
+        }
+
+        .wheel-item.active {
+            opacity: 1;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-primary, var(--color-teal-300));
+        }
+
+        /* Lock Buttons */
+        .lock-btn {
+            margin-top: 8px;
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--color-border, rgba(255, 255, 255, 0.2));
+            background: transparent;
+            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 36px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .lock-btn:active {
+            transform: scale(0.95);
+        }
+
+        .lock-btn.locked {
+            background: var(--color-primary, var(--color-teal-300));
+            color: var(--color-slate-900);
+            border-color: var(--color-primary, var(--color-teal-300));
+        }
+
+        /* Exposure Compensation */
+        .compensation-control {
+            padding: 16px 20px;
+            border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .compensation-label {
+            font-size: 12px;
+            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .compensation-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text, var(--color-gray-200));
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .compensation-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .comp-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid var(--color-border, rgba(255, 255, 255, 0.2));
+            background: transparent;
+            color: var(--color-text, var(--color-gray-200));
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .comp-btn:active {
+            background: var(--color-primary, var(--color-teal-300));
+            color: var(--color-slate-900);
+            transform: scale(0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>Light Meter</h1>
+            <div class="ev-display" id="evDisplay">EV 12</div>
+        </div>
+
+        <div class="camera-view">
+            <div class="camera-placeholder">Camera view (simulated light sensor)</div>
+            <div class="spot-meter-overlay"></div>
+            <button class="measure-btn" id="measureBtn">MEASURE</button>
+        </div>
+
+        <div class="controls-panel">
+            <div class="iso-control">
+                <div class="iso-label">Film ISO</div>
+                <div class="iso-value" id="isoValue">400</div>
+                <input type="range" class="iso-slider" id="isoSlider" min="0" max="9" value="5" step="1">
+            </div>
+
+            <div class="exposure-wheels">
+                <div class="wheel-container">
+                    <div class="wheel-label">Aperture</div>
+                    <div class="wheel" id="apertureWheel"></div>
+                    <button class="lock-btn" id="apertureLock">LOCK</button>
+                </div>
+
+                <div class="wheel-container">
+                    <div class="wheel-label">Shutter</div>
+                    <div class="wheel" id="shutterWheel"></div>
+                    <button class="lock-btn" id="shutterLock">LOCK</button>
+                </div>
+            </div>
+
+            <div class="compensation-control">
+                <div class="compensation-label">Exposure Comp</div>
+                <div class="compensation-buttons">
+                    <button class="comp-btn" id="compMinus">−</button>
+                    <button class="comp-btn" id="compPlus">+</button>
+                </div>
+                <div class="compensation-value" id="compValue">0.0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const isoValues = [25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800];
+        const apertures = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
+        const shutterSpeeds = [8000, 4000, 2000, 1000, 500, 250, 125, 60, 30, 15, 8, 4, 2, 1, 0.5];
+
+        let currentISO = 400;
+        let currentEV = 12;
+        let currentApertureIndex = 4;
+        let currentShutterIndex = 6;
+        let exposureComp = 0;
+        let apertureLocked = false;
+        let shutterLocked = false;
+
+        function formatShutterSpeed(speed) {
+            if (speed >= 1) return `1/${speed}`;
+            return `${speed}"`;
+        }
+
+        function calculateEV(aperture, shutterSpeed, iso) {
+            const t = shutterSpeed >= 1 ? 1 / shutterSpeed : shutterSpeed;
+            return Math.log2((aperture * aperture) / t) - Math.log2(iso / 100);
+        }
+
+        function createWheel(values, formatter, containerId) {
+            const container = document.getElementById(containerId);
+            values.forEach((value, index) => {
+                const item = document.createElement('div');
+                item.className = 'wheel-item';
+                item.textContent = formatter ? formatter(value) : `f/${value}`;
+                item.dataset.index = index;
+                container.appendChild(item);
+            });
+        }
+
+        function updateWheelDisplay(wheelId, activeIndex) {
+            const items = document.querySelectorAll(`#${wheelId} .wheel-item`);
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === activeIndex);
+            });
+        }
+
+        function scrollToIndex(wheelId, index) {
+            const wheel = document.getElementById(wheelId);
+            const items = wheel.querySelectorAll('.wheel-item');
+            if (items[index]) {
+                items[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function findBestExposure(targetEV, iso) {
+            let bestDiff = Infinity;
+            let bestAperture = currentApertureIndex;
+            let bestShutter = currentShutterIndex;
+
+            if (!apertureLocked && !shutterLocked) {
+                for (let a = 0; a < apertures.length; a++) {
+                    for (let s = 0; s < shutterSpeeds.length; s++) {
+                        const ev = calculateEV(apertures[a], shutterSpeeds[s], iso);
+                        const diff = Math.abs(ev - targetEV);
+                        if (diff < bestDiff) {
+                            bestDiff = diff;
+                            bestAperture = a;
+                            bestShutter = s;
+                        }
+                    }
+                }
+            } else if (apertureLocked) {
+                for (let s = 0; s < shutterSpeeds.length; s++) {
+                    const ev = calculateEV(apertures[currentApertureIndex], shutterSpeeds[s], iso);
+                    const diff = Math.abs(ev - targetEV);
+                    if (diff < bestDiff) {
+                        bestDiff = diff;
+                        bestShutter = s;
+                    }
+                }
+                bestAperture = currentApertureIndex;
+            } else if (shutterLocked) {
+                for (let a = 0; a < apertures.length; a++) {
+                    const ev = calculateEV(apertures[a], shutterSpeeds[currentShutterIndex], iso);
+                    const diff = Math.abs(ev - targetEV);
+                    if (diff < bestDiff) {
+                        bestDiff = diff;
+                        bestAperture = a;
+                    }
+                }
+                bestShutter = currentShutterIndex;
+            }
+
+            return { aperture: bestAperture, shutter: bestShutter };
+        }
+
+        function updateExposure() {
+            const adjustedEV = currentEV + exposureComp;
+            const best = findBestExposure(adjustedEV, currentISO);
+            
+            currentApertureIndex = best.aperture;
+            currentShutterIndex = best.shutter;
+
+            scrollToIndex('apertureWheel', currentApertureIndex);
+            scrollToIndex('shutterWheel', currentShutterIndex);
+            updateWheelDisplay('apertureWheel', currentApertureIndex);
+            updateWheelDisplay('shutterWheel', currentShutterIndex);
+        }
+
+        // Initialize
+        createWheel(apertures, (v) => `f/${v}`, 'apertureWheel');
+        createWheel(shutterSpeeds, formatShutterSpeed, 'shutterWheel');
+
+        // Wheel Scroll Handlers
+        function setupWheelScroll(wheelId, values, callback) {
+            const wheel = document.getElementById(wheelId);
+            let scrollTimeout;
+            let isScrolling = false;
+            
+            wheel.addEventListener('touchstart', () => {
+                isScrolling = true;
+            });
+            
+            wheel.addEventListener('touchend', () => {
+                setTimeout(() => {
+                    isScrolling = false;
+                }, 150);
+            });
+            
+            wheel.addEventListener('scroll', () => {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    if (isScrolling) return;
+                    const items = wheel.querySelectorAll('.wheel-item');
+                    let closestIndex = 0;
+                    let minDistance = Infinity;
+                    
+                    items.forEach((item, index) => {
+                        const rect = item.getBoundingClientRect();
+                        const wheelRect = wheel.getBoundingClientRect();
+                        const itemCenter = rect.top + rect.height / 2;
+                        const wheelCenter = wheelRect.top + wheelRect.height / 2;
+                        const distance = Math.abs(itemCenter - wheelCenter);
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestIndex = index;
+                        }
+                    });
+                    
+                    callback(closestIndex);
+                }, 100);
+            });
+        }
+
+        setupWheelScroll('apertureWheel', apertures, (index) => {
+            if (!apertureLocked) {
+                currentApertureIndex = index;
+                updateWheelDisplay('apertureWheel', currentApertureIndex);
+                
+                // Recalculate shutter speed if needed
+                if (shutterLocked) {
+                    const adjustedEV = currentEV + exposureComp;
+                    const best = findBestExposure(adjustedEV, currentISO);
+                    currentApertureIndex = best.aperture;
+                    scrollToIndex('apertureWheel', currentApertureIndex);
+                    updateWheelDisplay('apertureWheel', currentApertureIndex);
+                } else {
+                    // Adjust shutter to maintain correct exposure
+                    const adjustedEV = currentEV + exposureComp;
+                    for (let s = 0; s < shutterSpeeds.length; s++) {
+                        const ev = calculateEV(apertures[currentApertureIndex], shutterSpeeds[s], currentISO);
+                        if (Math.abs(ev - adjustedEV) < 0.3) {
+                            currentShutterIndex = s;
+                            scrollToIndex('shutterWheel', currentShutterIndex);
+                            updateWheelDisplay('shutterWheel', currentShutterIndex);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        setupWheelScroll('shutterWheel', shutterSpeeds, (index) => {
+            if (!shutterLocked) {
+                currentShutterIndex = index;
+                updateWheelDisplay('shutterWheel', currentShutterIndex);
+                
+                // Recalculate aperture if needed
+                if (apertureLocked) {
+                    const adjustedEV = currentEV + exposureComp;
+                    const best = findBestExposure(adjustedEV, currentISO);
+                    currentShutterIndex = best.shutter;
+                    scrollToIndex('shutterWheel', currentShutterIndex);
+                    updateWheelDisplay('shutterWheel', currentShutterIndex);
+                } else {
+                    // Adjust aperture to maintain correct exposure
+                    const adjustedEV = currentEV + exposureComp;
+                    for (let a = 0; a < apertures.length; a++) {
+                        const ev = calculateEV(apertures[a], shutterSpeeds[currentShutterIndex], currentISO);
+                        if (Math.abs(ev - adjustedEV) < 0.3) {
+                            currentApertureIndex = a;
+                            scrollToIndex('apertureWheel', currentApertureIndex);
+                            updateWheelDisplay('apertureWheel', currentApertureIndex);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        // ISO Slider
+        document.getElementById('isoSlider').addEventListener('input', (e) => {
+            const index = parseInt(e.target.value);
+            currentISO = isoValues[index];
+            document.getElementById('isoValue').textContent = currentISO;
+            updateExposure();
+        });
+
+        // Measure Button
+        document.getElementById('measureBtn').addEventListener('click', () => {
+            const btn = document.getElementById('measureBtn');
+            btn.classList.add('measuring');
+            
+            // Simulate light measurement (random EV between 5-15)
+            setTimeout(() => {
+                currentEV = Math.floor(Math.random() * 11) + 5;
+                document.getElementById('evDisplay').textContent = `EV ${currentEV}`;
+                updateExposure();
+                btn.classList.remove('measuring');
+            }, 500);
+        });
+
+        // Lock Buttons
+        document.getElementById('apertureLock').addEventListener('click', (e) => {
+            apertureLocked = !apertureLocked;
+            e.target.classList.toggle('locked', apertureLocked);
+            if (apertureLocked) {
+                updateExposure();
+            }
+        });
+
+        document.getElementById('shutterLock').addEventListener('click', (e) => {
+            shutterLocked = !shutterLocked;
+            e.target.classList.toggle('locked', shutterLocked);
+            if (shutterLocked) {
+                updateExposure();
+            }
+        });
+
+        // Exposure Compensation
+        document.getElementById('compMinus').addEventListener('click', () => {
+            exposureComp = Math.max(-3, exposureComp - 0.3);
+            document.getElementById('compValue').textContent = exposureComp.toFixed(1);
+            updateExposure();
+        });
+
+        document.getElementById('compPlus').addEventListener('click', () => {
+            exposureComp = Math.min(3, exposureComp + 0.3);
+            document.getElementById('compValue').textContent = exposureComp.toFixed(1);
+            updateExposure();
+        });
+
+        // Initial setup
+        updateExposure();
+
+        // Service Worker Registration for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>
+

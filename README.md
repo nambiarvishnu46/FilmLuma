@@ -26,12 +26,12 @@ A professional light meter web app designed for film photographers. Calculate pe
 ## 🚀 Quick Start
 
 ### Try it Online
-Visit: [Your Hosted URL Here]
+Visit: //Hosted URL Here//
 
 ### Install as App
-1. Open the link on your phone
-2. Tap "Add to Home Screen" (iOS) or "Install" (Android)
-3. Use it like a native app!
+//1. Open the link on your phone//
+//2. Tap "Add to Home Screen" (iOS) or "Install" (Android)//
+//3. Use it like a native app!//
 
 ## 📱 How to Use
 
@@ -145,7 +145,7 @@ MIT License - feel free to use this project for personal or commercial purposes.
 
 ## 🎬 Screenshots
 
-[Add screenshots of your app here]
+//Add screenshots of app//
 
 ---
 

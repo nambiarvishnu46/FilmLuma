@@ -2,7 +2,7 @@
   "name": "Film Light Meter",
   "short_name": "Light Meter",
   "description": "Professional, touch-optimized film light meter with exposure calculator for manual cameras.",
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#1F2121",
   "theme_color": "#21808D",

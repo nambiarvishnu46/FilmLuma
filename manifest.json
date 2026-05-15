@@ -1,11 +1,11 @@
 {
-  "name": "Film Light Meter",
-  "short_name": "Light Meter",
-  "description": "Professional, touch-optimized film light meter with exposure calculator for manual cameras.",
+  "name": "FilmLuma",
+  "short_name": "FilmLuma",
+  "description": "Real-time camera light meter for film photography.",
   "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#1F2121",
-  "theme_color": "#21808D",
+  "background_color": "#121212",
+  "theme_color": "#121212",
   "orientation": "portrait",
   "id": "/",
   "icons": [

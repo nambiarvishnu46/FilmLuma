@@ -1,687 +1,974 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#21808D">
-    <meta name="description" content="Professional film photography light meter with exposure calculator">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon-192.png">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <title>Film Light Meter</title>
-    <style>
-        :root {
-            --color-cream-50: rgba(252, 252, 249, 1);
-            --color-cream-100: rgba(255, 255, 253, 1);
-            --color-slate-900: rgba(19, 52, 59, 1);
-            --color-slate-500: rgba(98, 108, 113, 1);
-            --color-teal-300: rgba(50, 184, 198, 1);
-            --color-teal-500: rgba(33, 128, 141, 1);
-            --color-teal-600: rgba(29, 116, 128, 1);
-            --color-brown-600-rgb: 94, 82, 64;
-            --color-teal-500-rgb: 33, 128, 141;
-            --color-gray-200: rgba(245, 245, 245, 1);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Real-time camera light meter for film photography">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>FilmLuma</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --color-background: rgba(31, 33, 33, 1);
-                --color-surface: rgba(38, 40, 40, 1);
-                --color-text: rgba(245, 245, 245, 1);
-                --color-text-secondary: rgba(167, 169, 169, 0.7);
-                --color-primary: var(--color-teal-300);
-                --color-border: rgba(119, 124, 124, 0.3);
-                --color-card-border: rgba(119, 124, 124, 0.2);
-            }
-        }
+    :root {
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --text: #f0f0f0;
+      --text-dim: #888;
+      --accent: #40c4ff;
+      --accent-dim: #0288d1;
+      --red: #ff5252;
+      --amber: #ffab00;
+      --green: #69f0ae;
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--color-background, var(--color-slate-900));
-            color: var(--color-text, var(--color-gray-200));
-            height: 100vh;
-            overflow: hidden;
-        }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+    }
 
-        .app-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+    #camera {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
 
-        /* Header */
-        .header {
-            background: var(--color-surface, rgba(0, 0, 0, 0.4));
-            backdrop-filter: blur(10px);
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-        }
+    #canvas {
+      display: none;
+    }
 
-        .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-        }
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-        .ev-display {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--color-primary, var(--color-teal-300));
-        }
+    .camera-fallback {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
 
-        /* Camera View */
-        .camera-view {
-            flex: 1;
-            position: relative;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
+    .camera-fallback p {
+      color: var(--text-dim);
+      font-size: 14px;
+    }
 
-        .camera-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            color: var(--color-text-secondary, rgba(255, 255, 255, 0.5));
-            font-size: 14px;
-        }
+    .camera-fallback .icon {
+      font-size: 48px;
+      opacity: 0.3;
+    }
 
-        .spot-meter-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100px;
-            height: 100px;
-            border: 2px solid var(--color-primary, var(--color-teal-300));
-            border-radius: 50%;
-            pointer-events: none;
-            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3);
-        }
+    /* Top bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    }
 
-        .spot-meter-overlay::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: var(--color-primary, var(--color-teal-300));
-        }
+    .top-bar .brand {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
 
-        .spot-meter-overlay::after {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background: var(--color-primary, var(--color-teal-300));
-        }
+    .top-bar .status {
+      font-size: 11px;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
 
-        /* Measure Button */
-        .measure-btn {
-            position: absolute;
-            bottom: 140px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: var(--color-primary, var(--color-teal-300));
-            border: 4px solid var(--color-surface, rgba(255, 255, 255, 0.2));
-            color: var(--color-slate-900);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            z-index: 10;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
+    .top-bar .status .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
 
-        .measure-btn:active {
-            transform: translateX(-50%) scale(0.95);
-            box-shadow: 0 0 20px rgba(50, 184, 198, 0.6);
-        }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
 
-        .measure-btn.measuring {
-            background: var(--color-teal-600);
-            animation: pulse 1s ease-in-out infinite;
-        }
+    /* Main reading area */
+    .reading-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
+    .spot-ring {
+      width: 100px;
+      height: 100px;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.3);
+    }
 
-        /* Controls Panel */
-        .controls-panel {
-            background: var(--color-surface, rgba(38, 40, 40, 1));
-            border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-        }
+    .spot-ring::before,
+    .spot-ring::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.15);
+    }
 
-        .iso-control {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-        }
+    .spot-ring::before {
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      transform: translateY(-50%);
+    }
 
-        .iso-label {
-            font-size: 12px;
-            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+    .spot-ring::after {
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      transform: translateX(-50%);
+    }
 
-        .iso-value {
-            font-size: 32px;
-            font-weight: 600;
-            color: var(--color-text, var(--color-gray-200));
-        }
+    .ev-readout {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      pointer-events: none;
+    }
 
-        .iso-slider {
-            width: 100%;
-            margin-top: 12px;
-            height: 44px;
-            touch-action: manipulation;
-            cursor: pointer;
-        }
+    .ev-number {
+      font-size: 72px;
+      font-weight: 200;
+      letter-spacing: -2px;
+      line-height: 1;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+      transition: color 0.3s;
+    }
 
-        .iso-slider::-webkit-slider-thumb {
-            width: 24px;
-            height: 24px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: var(--color-primary, var(--color-teal-300));
-            border-radius: 50%;
-            cursor: pointer;
-        }
+    .ev-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      text-shadow: 0 1px 10px rgba(0,0,0,0.8);
+      margin-top: 4px;
+    }
 
-        .iso-slider::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
-            background: var(--color-primary, var(--color-teal-300));
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-        }
+    /* Exposure scale */
+    .exposure-scale {
+      position: relative;
+      z-index: 2;
+      width: 200px;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin-top: 16px;
+      overflow: hidden;
+      pointer-events: none;
+    }
 
-        /* Exposure Wheels */
-        .exposure-wheels {
-            display: flex;
-            padding: 20px 0;
-        }
+    .exposure-scale .fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s, background 0.3s;
+    }
 
-        .wheel-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-        }
+    .exposure-scale .marker {
+      position: absolute;
+      top: -3px;
+      width: 2px;
+      height: 10px;
+      background: var(--text);
+      border-radius: 1px;
+      transform: translateX(-50%);
+      transition: left 0.3s;
+    }
 
-        .wheel-container:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 10%;
-            bottom: 10%;
-            width: 1px;
-            background: var(--color-border, rgba(255, 255, 255, 0.1));
-        }
+    /* Bottom controls */
+    .controls {
+      background: rgba(20,20,20,0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 16px 20px 24px;
+      z-index: 2;
+    }
 
-        .wheel-label {
-            font-size: 11px;
-            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
 
-        .wheel {
-            height: 160px;
-            overflow-y: auto;
-            scroll-snap-type: y mandatory;
-            -webkit-overflow-scrolling: touch;
-            width: 100%;
-            padding: 60px 0;
-            overscroll-behavior: contain;
-            touch-action: pan-y;
-        }
+    .control-row + .control-row {
+      margin-top: 14px;
+    }
 
-        .wheel::-webkit-scrollbar {
-            display: none;
-        }
+    .iso-section {
+      flex: 1;
+    }
 
-        .wheel * {
-            user-select: none;
-            -webkit-user-select: none;
-        }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
 
-        .wheel-item {
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: 500;
-            scroll-snap-align: center;
-            transition: all 0.2s;
-            opacity: 0.3;
-        }
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
 
-        .wheel-item.active {
-            opacity: 1;
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--color-primary, var(--color-teal-300));
-        }
+    .section-value {
+      font-size: 20px;
+      font-weight: 500;
+    }
 
-        /* Lock Buttons */
-        .lock-btn {
-            margin-top: 8px;
-            padding: 8px 20px;
-            border-radius: 20px;
-            border: 1px solid var(--color-border, rgba(255, 255, 255, 0.2));
-            background: transparent;
-            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-height: 36px;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 2px;
+      outline: none;
+      touch-action: manipulation;
+    }
 
-        .lock-btn:active {
-            transform: scale(0.95);
-        }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 3px solid var(--surface);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+    }
 
-        .lock-btn.locked {
-            background: var(--color-primary, var(--color-teal-300));
-            color: var(--color-slate-900);
-            border-color: var(--color-primary, var(--color-teal-300));
-        }
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 3px solid var(--surface);
+    }
 
-        /* Exposure Compensation */
-        .compensation-control {
-            padding: 16px 20px;
-            border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+    .exposure-display {
+      flex: 2;
+      display: flex;
+      gap: 12px;
+    }
 
-        .compensation-label {
-            font-size: 12px;
-            color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+    .exposure-card {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: border-color 0.3s;
+    }
 
-        .compensation-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--color-text, var(--color-gray-200));
-            min-width: 60px;
-            text-align: right;
-        }
+    .exposure-card.locked {
+      border-color: var(--accent-dim);
+    }
 
-        .compensation-buttons {
-            display: flex;
-            gap: 8px;
-        }
+    .exposure-card .label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
 
-        .comp-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            border: 1px solid var(--color-border, rgba(255, 255, 255, 0.2));
-            background: transparent;
-            color: var(--color-text, var(--color-gray-200));
-            font-size: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
+    .exposure-card .value {
+      font-size: 22px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
 
-        .comp-btn:active {
-            background: var(--color-primary, var(--color-teal-300));
-            color: var(--color-slate-900);
-            transform: scale(0.9);
-        }
-    </style>
+    .lock-btn {
+      margin-top: 6px;
+      padding: 4px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.2s;
+    }
+
+    .lock-btn:active {
+      transform: scale(0.95);
+    }
+
+    .lock-btn.locked {
+      background: var(--accent-dim);
+      color: #fff;
+      border-color: var(--accent-dim);
+    }
+
+    /* Compensation row */
+    .comp-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .comp-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      min-width: 34px;
+    }
+
+    .comp-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .comp-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: transparent;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .comp-btn:active {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+      transform: scale(0.9);
+    }
+
+    .comp-value {
+      font-size: 16px;
+      font-weight: 500;
+      min-width: 44px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .comp-reset {
+      font-size: 10px;
+      color: var(--text-dim);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
+      background: rgba(255,255,255,0.06);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .comp-reset:active {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Equivalent exposures */
+    .equiv-section {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .equiv-header {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .equiv-list {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .equiv-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .equiv-item {
+      flex-shrink: 0;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .equiv-item.selected {
+      border-color: var(--accent);
+      background: rgba(64,196,255,0.1);
+    }
+
+    /* Error / permission states */
+    .error-msg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .error-msg .icon {
+      font-size: 48px;
+      opacity: 0.3;
+    }
+
+    .error-msg h2 {
+      font-weight: 400;
+      font-size: 18px;
+    }
+
+    .error-msg p {
+      color: var(--text-dim);
+      font-size: 13px;
+      max-width: 320px;
+      line-height: 1.5;
+    }
+
+    .error-msg .retry-btn {
+      margin-top: 8px;
+      padding: 10px 28px;
+      border-radius: 20px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (min-width: 768px) {
+      .reading-area {
+        justify-content: center;
+      }
+      .ev-number {
+        font-size: 96px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="header">
-            <h1>Light Meter</h1>
-            <div class="ev-display" id="evDisplay">EV 12</div>
-        </div>
+  <video id="camera" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
 
-        <div class="camera-view">
-            <div class="camera-placeholder">Camera view (simulated light sensor)</div>
-            <div class="spot-meter-overlay"></div>
-            <button class="measure-btn" id="measureBtn">MEASURE</button>
-        </div>
-
-        <div class="controls-panel">
-            <div class="iso-control">
-                <div class="iso-label">Film ISO</div>
-                <div class="iso-value" id="isoValue">400</div>
-                <input type="range" class="iso-slider" id="isoSlider" min="0" max="9" value="5" step="1">
-            </div>
-
-            <div class="exposure-wheels">
-                <div class="wheel-container">
-                    <div class="wheel-label">Aperture</div>
-                    <div class="wheel" id="apertureWheel"></div>
-                    <button class="lock-btn" id="apertureLock">LOCK</button>
-                </div>
-
-                <div class="wheel-container">
-                    <div class="wheel-label">Shutter</div>
-                    <div class="wheel" id="shutterWheel"></div>
-                    <button class="lock-btn" id="shutterLock">LOCK</button>
-                </div>
-            </div>
-
-            <div class="compensation-control">
-                <div class="compensation-label">Exposure Comp</div>
-                <div class="compensation-buttons">
-                    <button class="comp-btn" id="compMinus">−</button>
-                    <button class="comp-btn" id="compPlus">+</button>
-                </div>
-                <div class="compensation-value" id="compValue">0.0</div>
-            </div>
-        </div>
+  <div class="overlay">
+    <div class="top-bar">
+      <span class="brand">FilmLuma</span>
+      <span class="status" id="status"><span class="dot"></span> metering</span>
     </div>
 
-    <script>
-        const isoValues = [25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800];
-        const apertures = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
-        const shutterSpeeds = [8000, 4000, 2000, 1000, 500, 250, 125, 60, 30, 15, 8, 4, 2, 1, 0.5];
+    <div class="reading-area">
+      <div class="spot-ring"></div>
+      <div class="ev-readout">
+        <div class="ev-number" id="evNumber">--</div>
+        <div class="ev-label">Exposure Value</div>
+      </div>
+      <div class="exposure-scale">
+        <div class="fill" id="evFill" style="width: 50%"></div>
+        <div class="marker" id="evMarker" style="left: 50%"></div>
+      </div>
+    </div>
 
-        let currentISO = 400;
-        let currentEV = 12;
-        let currentApertureIndex = 4;
-        let currentShutterIndex = 6;
-        let exposureComp = 0;
-        let apertureLocked = false;
-        let shutterLocked = false;
+    <div class="controls">
+      <div class="control-row">
+        <div class="iso-section">
+          <div class="section-header">
+            <span class="section-label">ISO</span>
+            <span class="section-value" id="isoValue">400</span>
+          </div>
+          <input type="range" id="isoSlider" min="0" max="14" value="6" step="1">
+        </div>
+      </div>
 
-        function formatShutterSpeed(speed) {
-            if (speed >= 1) return `1/${speed}`;
-            return `${speed}"`;
+      <div class="control-row">
+        <div class="exposure-display">
+          <div class="exposure-card" id="apertureCard">
+            <div class="label">Aperture</div>
+            <div class="value" id="apertureValue">f/--</div>
+            <button class="lock-btn" id="apertureLock">Lock</button>
+          </div>
+          <div class="exposure-card" id="shutterCard">
+            <div class="label">Shutter</div>
+            <div class="value" id="shutterValue">--</div>
+            <button class="lock-btn" id="shutterLock">Lock</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="comp-row">
+          <span class="comp-label">Comp</span>
+          <div class="comp-btns">
+            <button class="comp-btn" id="compMinus">&minus;</button>
+            <button class="comp-btn" id="compPlus">+</button>
+          </div>
+          <span class="comp-value" id="compDisplay">0.0</span>
+          <button class="comp-reset" id="compReset">Reset</button>
+        </div>
+      </div>
+
+      <div class="equiv-section">
+        <div class="equiv-header">Equivalent exposures</div>
+        <div class="equiv-list" id="equivList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fallback when camera is not available -->
+  <div class="camera-fallback" id="cameraFallback">
+    <div class="icon">&#x1F4F7;</div>
+    <p>Camera not available</p>
+    <div class="ev-readout" style="position:static; margin-top: 20px;">
+      <div class="ev-number" id="fallbackEv" style="font-size: 48px; text-shadow: none;">EV --</div>
+    </div>
+  </div>
+
+  <!-- Error overlay -->
+  <div class="error-msg hidden" id="errorOverlay">
+    <div class="icon">&#x26A0;&#xFE0F;</div>
+    <h2>Camera access required</h2>
+    <p id="errorText">This app needs camera access to measure light. Please allow camera permissions.</p>
+    <button class="retry-btn" id="retryBtn">Try Again</button>
+  </div>
+
+  <script>
+    const ISO_VALUES = [
+      12, 25, 50, 100, 125, 160, 200, 400, 800,
+      1600, 3200, 6400, 12800, 25600, 51200
+    ];
+
+    const APERTURES = [
+      1, 1.2, 1.4, 1.8, 2, 2.4, 2.8, 3.5, 4,
+      4.5, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22
+    ];
+
+    const SHUTTER_SPEEDS = [
+      8000, 4000, 2000, 1000, 500, 250, 125, 60,
+      30, 15, 8, 4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625
+    ];
+
+    // State
+    let currentISO = 400;
+    let measuredEV = null;
+    let currentApertureIndex = 5;
+    let currentShutterIndex = 6;
+    let apertureLocked = false;
+    let shutterLocked = false;
+    let compensation = 0;
+    let stream = null;
+    let meteringActive = false;
+    let animationId = null;
+    let cameraReady = false;
+
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const fallbackEv = document.getElementById('fallbackEv');
+
+    // DOM refs
+    const evNumber = document.getElementById('evNumber');
+    const evFill = document.getElementById('evFill');
+    const evMarker = document.getElementById('evMarker');
+    const isoSlider = document.getElementById('isoSlider');
+    const isoValue = document.getElementById('isoValue');
+    const apertureValue = document.getElementById('apertureValue');
+    const shutterValue = document.getElementById('shutterValue');
+    const compDisplay = document.getElementById('compDisplay');
+    const equivList = document.getElementById('equivList');
+    const cameraFallback = document.getElementById('cameraFallback');
+    const status = document.getElementById('status');
+    const errorOverlay = document.getElementById('errorOverlay');
+    const errorText = document.getElementById('errorText');
+    const retryBtn = document.getElementById('retryBtn');
+
+    // Lock buttons
+    const apertureLock = document.getElementById('apertureLock');
+    const shutterLock = document.getElementById('shutterLock');
+    const apertureCard = document.getElementById('apertureCard');
+    const shutterCard = document.getElementById('shutterCard');
+
+    function formatShutter(speed) {
+      if (speed >= 1) return `1/${speed}`;
+      const fraction = Math.round(1 / speed);
+      return fraction === 1 ? `1"` : `1/${fraction}"`;
+    }
+
+    function formatAperture(f) {
+      return `f/${f}`;
+    }
+
+    function clamp(v, min, max) {
+      return Math.min(max, Math.max(min, v));
+    }
+
+    // Exposure value calculation
+    function evFromLuminance(avgLuminance) {
+      if (avgLuminance == null) return null;
+      const norm = avgLuminance / 255;
+      if (norm < 0.001) return 0;
+      // Map pixel brightness to EV 0-20 using a logarithmic curve
+      return clamp(Math.log2(1 + norm * 1048575) * 1.2, 0, 20);
+    }
+
+    function calculateEV(aperture, shutterSpeed, iso) {
+      const t = shutterSpeed >= 1 ? 1 / shutterSpeed : shutterSpeed;
+      return Math.log2((aperture * aperture) / t) - Math.log2(iso / 100);
+    }
+
+    function findBestExposure(targetEV, iso, fixedAperture, fixedShutter) {
+      const hasFixedA = fixedAperture != null;
+      const hasFixedS = fixedShutter != null;
+
+      let bestDiff = Infinity;
+      let bestA = APERTURES.indexOf(fixedAperture) || 0;
+      let bestS = SHUTTER_SPEEDS.indexOf(fixedShutter) || 0;
+
+      const aRange = hasFixedA ? [APERTURES.indexOf(fixedAperture)] : APERTURES.map((_, i) => i);
+      const sRange = hasFixedS ? [SHUTTER_SPEEDS.indexOf(fixedShutter)] : SHUTTER_SPEEDS.map((_, i) => i);
+
+      for (const a of aRange) {
+        for (const s of sRange) {
+          const ev = calculateEV(APERTURES[a], SHUTTER_SPEEDS[s], iso);
+          const diff = Math.abs(ev - targetEV);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestA = a;
+            bestS = s;
+          }
+        }
+      }
+      return { aperture: bestA, shutter: bestS };
+    }
+
+    function getEquivalentExposures(targetEV, iso, count) {
+      count = count || 10;
+      const results = [];
+      const midA = Math.floor(APERTURES.length / 2);
+      for (let offset = -count/2; offset < count/2; offset++) {
+        const a = clamp(midA + offset, 0, APERTURES.length - 1);
+        const t = (APERTURES[a] * APERTURES[a]) / Math.pow(2, targetEV - Math.log2(iso/100));
+        let sIndex = SHUTTER_SPEEDS.reduce((best, s, idx) => {
+          const targetT = t;
+          return Math.abs(s - targetT) < Math.abs(SHUTTER_SPEEDS[best] - targetT) ? idx : best;
+        }, 0);
+        const actualEV = calculateEV(APERTURES[a], SHUTTER_SPEEDS[sIndex], iso);
+        const diff = Math.abs(actualEV - targetEV);
+        if (diff < 1.0) {
+          results.push({ aperture: APERTURES[a], shutter: SHUTTER_SPEEDS[sIndex] });
+        }
+      }
+      return results.slice(0, count);
+    }
+
+    function updateDisplay() {
+      if (measuredEV == null) {
+        evNumber.textContent = '--';
+        fallbackEv.textContent = 'EV --';
+        evFill.style.width = '0%';
+        evMarker.style.left = '0%';
+        apertureValue.textContent = 'f/--';
+        shutterValue.textContent = '--';
+        equivList.innerHTML = '';
+        return;
+      }
+
+      const adjustedEV = measuredEV + compensation;
+      evNumber.textContent = `EV ${adjustedEV.toFixed(1)}`;
+      fallbackEv.textContent = `EV ${adjustedEV.toFixed(1)}`;
+
+      const pct = clamp((adjustedEV / 20) * 100, 0, 100);
+      evFill.style.width = `${pct}%`;
+      evMarker.style.left = `${pct}%`;
+
+      if (adjustedEV < 6) {
+        evFill.style.background = 'var(--red)';
+        evNumber.style.color = 'var(--red)';
+      } else if (adjustedEV < 10) {
+        evFill.style.background = 'var(--amber)';
+        evNumber.style.color = 'var(--amber)';
+      } else {
+        evFill.style.background = 'var(--green)';
+        evNumber.style.color = 'var(--green)';
+      }
+
+      const fixedA = apertureLocked ? APERTURES[currentApertureIndex] : null;
+      const fixedS = shutterLocked ? SHUTTER_SPEEDS[currentShutterIndex] : null;
+      const best = findBestExposure(adjustedEV, currentISO, fixedA, fixedS);
+
+      if (!apertureLocked) currentApertureIndex = best.aperture;
+      if (!shutterLocked) currentShutterIndex = best.shutter;
+
+      apertureValue.textContent = formatAperture(APERTURES[currentApertureIndex]);
+      shutterValue.textContent = formatShutter(SHUTTER_SPEEDS[currentShutterIndex]);
+
+      const equiv = getEquivalentExposures(adjustedEV, currentISO, 8);
+      equivList.innerHTML = equiv.map((e, i) => {
+        const isSelected = e.aperture === APERTURES[currentApertureIndex] && e.shutter === SHUTTER_SPEEDS[currentShutterIndex];
+        return `<span class="equiv-item${isSelected ? ' selected' : ''}">${formatAperture(e.aperture)} ${formatShutter(e.shutter)}</span>`;
+      }).join('');
+    }
+
+    // Camera frame analysis
+    function analyzeFrame() {
+      if (!cameraReady || !video.videoWidth) {
+        meteringActive = false;
+        return;
+      }
+
+      const w = canvas.width = Math.min(video.videoWidth, 320);
+      const h = canvas.height = Math.min(video.videoHeight, 240);
+
+      try {
+        ctx.drawImage(video, 0, 0, w, h);
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const pixels = imageData.data;
+        let total = 0;
+        const len = pixels.length;
+
+        // Sample every 4th pixel for performance
+        for (let i = 0; i < len; i += 16) {
+          total += 0.299 * pixels[i] + 0.587 * pixels[i+1] + 0.114 * pixels[i+2];
         }
 
-        function calculateEV(aperture, shutterSpeed, iso) {
-            const t = shutterSpeed >= 1 ? 1 / shutterSpeed : shutterSpeed;
-            return Math.log2((aperture * aperture) / t) - Math.log2(iso / 100);
-        }
+        const avg = total / (len / 16);
+        measuredEV = evFromLuminance(avg);
+        updateDisplay();
+      } catch (e) {
+        // Silently skip bad frames
+      }
 
-        function createWheel(values, formatter, containerId) {
-            const container = document.getElementById(containerId);
-            values.forEach((value, index) => {
-                const item = document.createElement('div');
-                item.className = 'wheel-item';
-                item.textContent = formatter ? formatter(value) : `f/${value}`;
-                item.dataset.index = index;
-                container.appendChild(item);
-            });
-        }
+      meteringActive = false;
+    }
 
-        function updateWheelDisplay(wheelId, activeIndex) {
-            const items = document.querySelectorAll(`#${wheelId} .wheel-item`);
-            items.forEach((item, index) => {
-                item.classList.toggle('active', index === activeIndex);
-            });
-        }
+    function startMetering() {
+      if (animationId) return;
+      const LOOP_MS = 300;
 
-        function scrollToIndex(wheelId, index) {
-            const wheel = document.getElementById(wheelId);
-            const items = wheel.querySelectorAll('.wheel-item');
-            if (items[index]) {
-                items[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      function loop() {
+        if (!meteringActive) {
+          meteringActive = true;
+          setTimeout(() => {
+            if (cameraReady) {
+              try { analyzeFrame(); } catch (e) {}
             }
+          }, 0);
+        }
+        animationId = setTimeout(loop, LOOP_MS);
+      }
+      loop();
+    }
+
+    function stopMetering() {
+      if (animationId) {
+        clearTimeout(animationId);
+        animationId = null;
+      }
+      meteringActive = false;
+    }
+
+    // Camera setup
+    async function startCamera() {
+      try {
+        stopMetering();
+
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
         }
 
-        function findBestExposure(targetEV, iso) {
-            let bestDiff = Infinity;
-            let bestAperture = currentApertureIndex;
-            let bestShutter = currentShutterIndex;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
 
-            if (!apertureLocked && !shutterLocked) {
-                for (let a = 0; a < apertures.length; a++) {
-                    for (let s = 0; s < shutterSpeeds.length; s++) {
-                        const ev = calculateEV(apertures[a], shutterSpeeds[s], iso);
-                        const diff = Math.abs(ev - targetEV);
-                        if (diff < bestDiff) {
-                            bestDiff = diff;
-                            bestAperture = a;
-                            bestShutter = s;
-                        }
-                    }
-                }
-            } else if (apertureLocked) {
-                for (let s = 0; s < shutterSpeeds.length; s++) {
-                    const ev = calculateEV(apertures[currentApertureIndex], shutterSpeeds[s], iso);
-                    const diff = Math.abs(ev - targetEV);
-                    if (diff < bestDiff) {
-                        bestDiff = diff;
-                        bestShutter = s;
-                    }
-                }
-                bestAperture = currentApertureIndex;
-            } else if (shutterLocked) {
-                for (let a = 0; a < apertures.length; a++) {
-                    const ev = calculateEV(apertures[a], shutterSpeeds[currentShutterIndex], iso);
-                    const diff = Math.abs(ev - targetEV);
-                    if (diff < bestDiff) {
-                        bestDiff = diff;
-                        bestAperture = a;
-                    }
-                }
-                bestShutter = currentShutterIndex;
-            }
+        video.srcObject = stream;
+        await video.play();
 
-            return { aperture: bestAperture, shutter: bestShutter };
+        cameraReady = true;
+        errorOverlay.classList.add('hidden');
+        cameraFallback.classList.add('hidden');
+        status.innerHTML = '<span class="dot"></span> metering';
+
+        startMetering();
+      } catch (err) {
+        cameraReady = false;
+        console.error('Camera error:', err);
+
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorOverlay.classList.remove('hidden');
+          errorText.textContent = 'Camera permission was denied. Please allow camera access in your browser settings and try again.';
+        } else if (err.name === 'NotFoundError') {
+          cameraFallback.classList.remove('hidden');
+        } else {
+          cameraFallback.classList.remove('hidden');
         }
+      }
+    }
 
-        function updateExposure() {
-            const adjustedEV = currentEV + exposureComp;
-            const best = findBestExposure(adjustedEV, currentISO);
-            
-            currentApertureIndex = best.aperture;
-            currentShutterIndex = best.shutter;
+    // ISO slider
+    isoSlider.addEventListener('input', (e) => {
+      currentISO = ISO_VALUES[parseInt(e.target.value)];
+      isoValue.textContent = currentISO;
+      updateDisplay();
+    });
 
-            scrollToIndex('apertureWheel', currentApertureIndex);
-            scrollToIndex('shutterWheel', currentShutterIndex);
-            updateWheelDisplay('apertureWheel', currentApertureIndex);
-            updateWheelDisplay('shutterWheel', currentShutterIndex);
+    // Compensation
+    document.getElementById('compMinus').addEventListener('click', () => {
+      compensation = clamp(compensation - 0.3, -3, 3);
+      compDisplay.textContent = compensation.toFixed(1);
+      updateDisplay();
+    });
+
+    document.getElementById('compPlus').addEventListener('click', () => {
+      compensation = clamp(compensation + 0.3, -3, 3);
+      compDisplay.textContent = compensation.toFixed(1);
+      updateDisplay();
+    });
+
+    document.getElementById('compReset').addEventListener('click', () => {
+      compensation = 0;
+      compDisplay.textContent = '0.0';
+      updateDisplay();
+    });
+
+    // Lock buttons
+    apertureLock.addEventListener('click', () => {
+      apertureLocked = !apertureLocked;
+      apertureLock.classList.toggle('locked', apertureLocked);
+      apertureCard.classList.toggle('locked', apertureLocked);
+      if (apertureLocked) updateDisplay();
+    });
+
+    shutterLock.addEventListener('click', () => {
+      shutterLocked = !shutterLocked;
+      shutterLock.classList.toggle('locked', shutterLocked);
+      shutterCard.classList.toggle('locked', shutterLocked);
+      if (shutterLocked) updateDisplay();
+    });
+
+    retryBtn.addEventListener('click', startCamera);
+
+    // Initialize
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      errorOverlay.classList.remove('hidden');
+      errorText.textContent = 'Your browser does not support camera access. Please use a modern browser on a device with a camera.';
+    } else {
+      startCamera();
+      updateDisplay();
+    }
+
+    // Handle page visibility - pause/resume
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopMetering();
+        if (stream) {
+          stream.getTracks().forEach(t => t.enabled = false);
         }
-
-        // Initialize
-        createWheel(apertures, (v) => `f/${v}`, 'apertureWheel');
-        createWheel(shutterSpeeds, formatShutterSpeed, 'shutterWheel');
-
-        // Wheel Scroll Handlers
-        function setupWheelScroll(wheelId, values, callback) {
-            const wheel = document.getElementById(wheelId);
-            let scrollTimeout;
-            let isScrolling = false;
-            
-            wheel.addEventListener('touchstart', () => {
-                isScrolling = true;
-            });
-            
-            wheel.addEventListener('touchend', () => {
-                setTimeout(() => {
-                    isScrolling = false;
-                }, 150);
-            });
-            
-            wheel.addEventListener('scroll', () => {
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => {
-                    if (isScrolling) return;
-                    const items = wheel.querySelectorAll('.wheel-item');
-                    let closestIndex = 0;
-                    let minDistance = Infinity;
-                    
-                    items.forEach((item, index) => {
-                        const rect = item.getBoundingClientRect();
-                        const wheelRect = wheel.getBoundingClientRect();
-                        const itemCenter = rect.top + rect.height / 2;
-                        const wheelCenter = wheelRect.top + wheelRect.height / 2;
-                        const distance = Math.abs(itemCenter - wheelCenter);
-                        
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestIndex = index;
-                        }
-                    });
-                    
-                    callback(closestIndex);
-                }, 100);
-            });
+      } else {
+        if (stream) {
+          stream.getTracks().forEach(t => t.enabled = true);
         }
-
-        setupWheelScroll('apertureWheel', apertures, (index) => {
-            if (!apertureLocked) {
-                currentApertureIndex = index;
-                updateWheelDisplay('apertureWheel', currentApertureIndex);
-                
-                // Recalculate shutter speed if needed
-                if (shutterLocked) {
-                    const adjustedEV = currentEV + exposureComp;
-                    const best = findBestExposure(adjustedEV, currentISO);
-                    currentApertureIndex = best.aperture;
-                    scrollToIndex('apertureWheel', currentApertureIndex);
-                    updateWheelDisplay('apertureWheel', currentApertureIndex);
-                } else {
-                    // Adjust shutter to maintain correct exposure
-                    const adjustedEV = currentEV + exposureComp;
-                    for (let s = 0; s < shutterSpeeds.length; s++) {
-                        const ev = calculateEV(apertures[currentApertureIndex], shutterSpeeds[s], currentISO);
-                        if (Math.abs(ev - adjustedEV) < 0.3) {
-                            currentShutterIndex = s;
-                            scrollToIndex('shutterWheel', currentShutterIndex);
-                            updateWheelDisplay('shutterWheel', currentShutterIndex);
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-
-        setupWheelScroll('shutterWheel', shutterSpeeds, (index) => {
-            if (!shutterLocked) {
-                currentShutterIndex = index;
-                updateWheelDisplay('shutterWheel', currentShutterIndex);
-                
-                // Recalculate aperture if needed
-                if (apertureLocked) {
-                    const adjustedEV = currentEV + exposureComp;
-                    const best = findBestExposure(adjustedEV, currentISO);
-                    currentShutterIndex = best.shutter;
-                    scrollToIndex('shutterWheel', currentShutterIndex);
-                    updateWheelDisplay('shutterWheel', currentShutterIndex);
-                } else {
-                    // Adjust aperture to maintain correct exposure
-                    const adjustedEV = currentEV + exposureComp;
-                    for (let a = 0; a < apertures.length; a++) {
-                        const ev = calculateEV(apertures[a], shutterSpeeds[currentShutterIndex], currentISO);
-                        if (Math.abs(ev - adjustedEV) < 0.3) {
-                            currentApertureIndex = a;
-                            scrollToIndex('apertureWheel', currentApertureIndex);
-                            updateWheelDisplay('apertureWheel', currentApertureIndex);
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-
-        // ISO Slider
-        document.getElementById('isoSlider').addEventListener('input', (e) => {
-            const index = parseInt(e.target.value);
-            currentISO = isoValues[index];
-            document.getElementById('isoValue').textContent = currentISO;
-            updateExposure();
-        });
-
-        // Measure Button
-        document.getElementById('measureBtn').addEventListener('click', () => {
-            const btn = document.getElementById('measureBtn');
-            btn.classList.add('measuring');
-            
-            // Simulate light measurement (random EV between 5-15)
-            setTimeout(() => {
-                currentEV = Math.floor(Math.random() * 11) + 5;
-                document.getElementById('evDisplay').textContent = `EV ${currentEV}`;
-                updateExposure();
-                btn.classList.remove('measuring');
-            }, 500);
-        });
-
-        // Lock Buttons
-        document.getElementById('apertureLock').addEventListener('click', (e) => {
-            apertureLocked = !apertureLocked;
-            e.target.classList.toggle('locked', apertureLocked);
-            if (apertureLocked) {
-                updateExposure();
-            }
-        });
-
-        document.getElementById('shutterLock').addEventListener('click', (e) => {
-            shutterLocked = !shutterLocked;
-            e.target.classList.toggle('locked', shutterLocked);
-            if (shutterLocked) {
-                updateExposure();
-            }
-        });
-
-        // Exposure Compensation
-        document.getElementById('compMinus').addEventListener('click', () => {
-            exposureComp = Math.max(-3, exposureComp - 0.3);
-            document.getElementById('compValue').textContent = exposureComp.toFixed(1);
-            updateExposure();
-        });
-
-        document.getElementById('compPlus').addEventListener('click', () => {
-            exposureComp = Math.min(3, exposureComp + 0.3);
-            document.getElementById('compValue').textContent = exposureComp.toFixed(1);
-            updateExposure();
-        });
-
-        // Initial setup
-        updateExposure();
-
-        // Service Worker Registration for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed'));
-            });
-        }
-    </script>
+        if (cameraReady) startMetering();
+      }
+    });
+  </script>
 </body>
 </html>
-

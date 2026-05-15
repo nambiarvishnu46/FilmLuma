@@ -26,12 +26,12 @@ A professional light meter web app designed for film photographers. Calculate pe
 ## 🚀 Quick Start
 
 ### Try it Online
-Visit: //Hosted URL Here//
+Visit: https://nambiarvishnu46.github.io/FilmLuma/
 
 ### Install as App
-//1. Open the link on your phone//
-//2. Tap "Add to Home Screen" (iOS) or "Install" (Android)//
-//3. Use it like a native app!//
+1. Open the link on your phone
+2. Tap "Add to Home Screen" (iOS) or "Install" (Android)
+3. Use it like a native app!
 
 ## 📱 How to Use
 
@@ -48,8 +48,8 @@ Visit: //Hosted URL Here//
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/film-light-meter.git
-cd film-light-meter
+git clone https://github.com/nambiarvishnu46/FilmLuma.git
+cd FilmLuma
 
 # Open in browser
 # Simply open index.html in your browser
@@ -140,12 +140,11 @@ MIT License - feel free to use this project for personal or commercial purposes.
 
 ## 📧 Contact
 
-- GitHub: [@yourusername](https://github.com/yourusername)
-- Email: your.email@example.com
+- GitHub: [@nambiarvishnu46](https://github.com/nambiarvishnu46)
 
 ## 🎬 Screenshots
 
-//Add screenshots of app//
+<!-- Add screenshots of app here -->
 
 ---
 
